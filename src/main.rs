@@ -187,7 +187,13 @@ impl From<&str> for Crash {
 pub fn nock(subject: &Noun, formula: &Cell) -> Result<Noun, Crash> {
     let (ref operation, ref parameter) = formula;
     match operation {
-        Noun::Cell(cell) => unimplemented!("[*[a b c] *[a d]]"),
+        // [*[a b c] *[a d]]
+        Noun::Cell(cell_) => {
+            let (f, g) = &*cell_.clone();
+            let fp = nock(subject, &*f.cell()?)?;
+            let gp = nock(subject, &*g.cell()?)?;
+            Ok(cell(fp, gp))
+        }
         Noun::Atom(atom) => match atom.try_u128().ok_or(Crash::from("opcode > u128"))? {
             // A formula [0 b] reduces to the noun at tree address b in the subject.
             // *[a 0 b]  ->  /[b a]
@@ -198,7 +204,12 @@ pub fn nock(subject: &Noun, formula: &Cell) -> Result<Noun, Crash> {
             // A formula [2 b c] treats b and c as formulas, resolves each against the
             // subject, then computes Nock again with the product of b as the subject, c
             // as the formula. *[a 2 b c]  ->  *[*[a b] *[a c]]
-            2 => unimplemented!(),
+            2 => {
+                let (f, g) = &*parameter.cell()?.clone();
+                let fp = nock(subject, &*f.cell()?)?;
+                let gp = nock(subject, &*g.cell()?)?;
+                nock(&fp, &*gp.cell()?)
+            }
             // In formulas [3 b] and [4 b], b is another formula, whose product against
             // the subject becomes the input to an axiomatic operator. 3 is ? and 4 is +
             // *[a 3 b]  ->  ?*[a b]
